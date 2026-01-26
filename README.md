@@ -2,7 +2,9 @@
 
 Fork repository for terminal-Based game where you mine ore, upgrades your stats, and become a good miner.
 
-This is a fork of the original PyMiner project. All changes and updates are documented in `CHANGELOG.md`.Installation
+This is a fork of the original PyMiner project. All changes and updates are documented in `CHANGELOG.md`.
+
+## Installation
 
 ```
 git clone https://github.com/mozakidev/PyMiner.git
