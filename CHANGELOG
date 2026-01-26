@@ -1,0 +1,38 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+## PyMiner [1.0.0]
+
+First public release of my PyMiner fork. The project has been refactored from a procedural script into a structured, object-oriented design, providing a foundation for modular development and future feature expansion.
+
+### Key Changes
+
+- **OOP Refactor**
+    - Core logic encapsulated in `Game`, `GameState`, and `Saves`.
+    - Removed global state and procedural functions.
+
+- **Item System**
+    - Items moved to `items` module.
+    - Inventory stores `Item` objects, enabling extensible item behavior.
+    - Loot generation is dynamic via `loot_generator`.
+
+- **Game Mechanics**
+    - Mining animation simplified with looped display.
+    - Inventory and upgrades fully integrated with `GameState`.
+    - Item prices derived from object properties instead of hardcoded values.
+
+- **Save System**
+    - Centralized management using `Saves` class.
+    - Consistent load and write operations on exit and updates.
+
+### Removed / Deprecated
+
+- Hardcoded item strings in main code.
+
+- `math.trunc` usage for currency display.
+
+Fixed
+
+- Inventory overflow now prevents mining beyond capacity.
+- Save file writes are consistent and reliable.

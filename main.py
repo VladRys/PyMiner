@@ -1,168 +1,187 @@
 import random
 import time
 import json
-import math
 import sys
 import os
 
-saveFile = open('save.json')
-save = json.load(saveFile)
+from items import *
 
-items = ["Stone","Stone","Stone","Stone","Stone","Stone","Stone","Coal","Coal","Coal","Coal","Coal","Coal","Iron","Iron","Iron","Iron","Gold","Gold","Gold", "Diamond"]
-inventory = save["inventory"]
-itemamt = [1, 1, 1, 1, 2, 2]
-money = save["money"]
-itemcapacity = save["itemcapacity"]
-miningtime = save["miningtime"]
+class Saves:
+    """Class for load & save data to json"""
+    def __init__(self, path: str = "save.json"):
+        self.path = path
+        self.__data = json.load(open(self.path))
+        
+    def __str__(self):
+        return f"{self.__data}"
 
-data = {
-    "name": "",
-    "money": money,
-    "inventory": inventory,
-    "itemcapacity": itemcapacity,
-    "miningtime": miningtime
-}
+    def __getitem__(self, key):
+        return self.__data.get(key, f"[WARNING] {key} not found")
 
-def showInventory():
-    global inventory
-    global money
-    os.system("cls")
-    totalVal = 0
-    counter = 0
-    inv = sorted(inventory)
-    for x in range(len(inventory)):
-        print(inv[counter] + " - $" + str(getItemPrice(inv[counter])))
-        totalVal += getItemPrice(inv[counter])
-        counter += 1
-    print("\nTotal Inventory Value: $" + str(totalVal) + "\n\n[1] Sell All\n[2] Back\n")
-    choice = input("Choice: ")
-    if choice == "1":
-        money += totalVal
-        inventory = []
-    if choice == "2":
-        main()
+    def __setitem__(self, key, value):
+        if key not in self.__data:
+            raise KeyError
+        
+        self.__data[key] = value 
+        with open(self.path, 'w') as save_file: json.dump(self.__data, save_file)
 
-def getItemPrice(item):
-    if item == "Stone":return 2
-    if item == "Coal":return 5
-    if item == "Iron":return 15
-    if item == "Gold":return 30
-    if item == "Diamond":return 75
-    
-def upgrades():
-    global itemcapacity
-    global miningtime
-    global money
-    capacityIncreaseCost = itemcapacity*25
-    speedIncreaseCost = 100-miningtime*30
-    os.system("cls")
-    print("$"+str(math.trunc(money)))
-    print("\n[1] Increase mining speed by 0.2 seconds | $"+str(math.trunc(speedIncreaseCost)))
-    print("[2] Increase Item Capacity by 1 | $"+str(math.trunc(capacityIncreaseCost)))
-    print("[3] Exit")
-    choice = input("\nChoice: ")
-    if choice == "1" and money >= speedIncreaseCost:
-        money -= speedIncreaseCost
-        miningtime -= 0.2
-        os.system("cls")
-        print("Mining speed has been increased!")
-        time.sleep(1.5)
-        upgrades()
-    if choice == "2" and money >= capacityIncreaseCost:
-        money -= capacityIncreaseCost
-        itemcapacity += 1
-        os.system("cls")
-        print("Item Capacity has been increased!")
-        time.sleep(1.5)
-        upgrades()
-    if choice == "3":main()
+save = Saves()
 
-def mine():
-    global itemcapacity
-    global inventory
-    global items
-    if len(inventory) < itemcapacity:
-        if len(inventory) == itemcapacity - 1:
-            os.system("cls")
-            print("Mining.")
-            time.sleep(miningtime/3)
-            os.system("cls")
-            print("Mining..")
-            time.sleep(miningtime/3)
-            os.system("cls")
-            print("Mining...")
-            time.sleep(miningtime/3)
-            os.system("cls")
-            print("Done!\n")
-            item = random.choice(items)
-            print(item + " - $" + str(getItemPrice(item)))
-            inventory.append(item)
-            input("\nPress Enter to continue...")
-            main()
+class GameState:
+    """Class for store a game state"""
+    INVENTORY: list[Item] = [ITEM_REGISTRY[name]() for name in save["inventory"]]
+    ITEMAMT: list = []
+    MONEY: int = save["money"]
+    ITEM_CAPACITY: int = save["itemcapacity"]
+    MINING_TIME = save["miningtime"]
+    ORE: list[Item] = [] 
+
+
+
+class Game:
+    def __init__(self):
+        self.loot_generator(5, GameState.ORE, GameState.ITEMAMT)
+
+    def run(self):
+        if save["name"]:
+            self.slowprint("Welcome back " + save["name"] + "!")
+            time.sleep(2)
+        
         else:
-            os.system("cls")
-            print("Mining.")
-            time.sleep(miningtime/3)
-            os.system("cls")
-            print("Mining..")
-            time.sleep(miningtime/3)
-            os.system("cls")
-            print("Mining...")
-            time.sleep(miningtime/3)
-            os.system("cls")
-            print("Done!\n")
-            for x in range(random.choice(itemamt)):
-                item = random.choice(items)
-                print(item + " - $" + str(getItemPrice(item)))
-                inventory.append(item)
-            input("\nPress Enter to continue...")
-            main()
-    else:
+            self.welcome()
+
+        while True:
+            self.menu()
+
+    def loot_generator(self, size: int, ore_list: list, amt_list: list):
+        for _ in range(size):
+            ore_list.append(random.choice(ORE_POOL)())
+            amt_list.append(random.randint(1,2))
+
+    def show_inventory(self):
         os.system("cls")
-        print("Inventory is full")
+        totalval = 0
+        for item in GameState.INVENTORY:
+            print(item.name + " - $" + str(self.get_item_price(item)))
+            totalval += self.get_item_price(item)
+ 
+        print("\nTotal inventory value: $" + str(totalval) + "\n\n[1] sell all\n[2] back\n")
+        choice = input("choice: ")
+        
+        if choice == "1":
+            GameState.MONEY += totalval
+            GameState.INVENTORY = []
+
+        if choice == "2":
+            return
+
+    def get_item_price(self, item: Item):
+        return item.price
+    
+    def upgrades(self):
+        capacity_increase_cost = GameState.ITEM_CAPACITY * 25
+        speed_increase_cost = 100-GameState.MINING_TIME*30
+
+        os.system("cls")
+        print("$"+str(round(GameState.MONEY)))
+        print("\n[1] Increase mining speed by 0.2 seconds | $"+str(round(speed_increase_cost)))
+        print("[2] Increase item capacity by 1 | $"+str(round(capacity_increase_cost)))
+        print("[3] Exit")
+        choice = input("\nchoice: ")
+
+        if choice == "1" and GameState.MONEY >= speed_increase_cost:
+            GameState.MONEY -= speed_increase_cost
+            GameState.MINING_TIME -= 0.2
+            os.system("cls")
+            print("Mining speed has been increased!")
+            time.sleep(1.5)
+            self.upgrades()
+            
+        if choice == "2" and GameState.MONEY >= capacity_increase_cost:
+            GameState.MONEY -= capacity_increase_cost
+            GameState.ITEM_CAPACITY += 1
+            os.system("cls")
+            print("Item capacity has been increased!")
+            time.sleep(1.5)
+            self.upgrades()
+
+        if choice == "3":
+            return
+
+    def mine(self):
+        if len(GameState.INVENTORY) >= GameState.ITEM_CAPACITY:
+            os.system("cls")
+            print("Inventory is full")
+            time.sleep(2)
+            self.menu() 
+            return
+        
+        step = GameState.MINING_TIME / 3
+        
+        for dots in range(1, 4):
+            os.system("cls")
+            print(f"mining{'.' * dots}")
+            time.sleep(step)
+
+        os.system("cls")
+        print("Done!\n")
+        
+        if len(GameState.INVENTORY) == GameState.ITEM_CAPACITY - 1: 
+            item = random.choice(GameState.ORE)
+            price = self.get_item_price(item)
+            print(f"{item} - ${price}")
+            GameState.INVENTORY.append(item)
+        else:
+            for x in range(random.choice(GameState.ITEMAMT)):
+                item = random.choice(GameState.ORE)
+                print(item.name + " - $" + str(self.get_item_price(item)))
+                GameState.INVENTORY.append(item)
+
+        input("\nPress enter to continue...")
+        return
+    
+
+    def menu(self):
+        os.system("cls")
+        print("pyminer\n\n"+"$"+str(round(GameState.MONEY))+"\n\nitem capacity: "+str(GameState.ITEM_CAPACITY)+"\nmining time: "+str(GameState.MINING_TIME)+"\n\n[1] go mining\n[2] inventory\n[3] upgrades\n[4] exit\n")
+        choice = input("choice: ")
+        if choice == "1":self.mine()
+        if choice == "2":self.show_inventory()
+        if choice == "3":self.upgrades()
+        if choice == "4":
+            data = {
+                "name": save["name"],
+                "money": GameState.MONEY,
+                "inventory": [item.__class__.__name__ for item in GameState.INVENTORY],
+                "itemcapacity": GameState.ITEM_CAPACITY,
+                "miningtime": GameState.MINING_TIME
+            }
+            with open('save.json', 'w') as save_file:json.dump(data, save_file)
+            sys.exit()
+
+    def slowprint(self, s):
+        for c in s + '\n':
+            sys.stdout.write(c)
+            sys.stdout.flush()
+            time.sleep(.4/10)
+
+    def welcome(self):
+        self.slowprint("Welcome to pyminer, what's your name? ")
+        name = input("")
+        save["name"] = name
+        data = {
+                "name": save["name"],
+                "money": GameState.MONEY,
+                "inventory": [item.__class__.__name__ for item in GameState.INVENTORY],
+                "itemcapacity": GameState.ITEM_CAPACITY,
+                "miningtime": GameState.MINING_TIME
+        }
+        
+        with open('save.json', 'w') as save_file:
+            json.dump(data, save_file)
+
+        self.slowprint("Hello " + data["name"] + "!")
         time.sleep(2)
-        main()
 
-def main():
-    global itemcapacity
-    global miningtime
-    global money
-    os.system("cls")
-    print("PyMiner\n\n"+"$"+str(math.trunc(money))+"\n\nItem Capacity: "+str(itemcapacity)+"\nMining Time: "+str(miningtime)+"\n\n[1] Go Mining\n[2] Inventory\n[3] Upgrades\n[4] Exit\n")
-    choice = input("Choice: ")
-    if choice == "1":mine()
-    if choice == "2":showInventory()
-    if choice == "3":upgrades()
-    if choice == "4":
-        data["name"] = save["name"]
-        data["money"] = money
-        data["inventory"] = inventory
-        data["itemcapacity"] = itemcapacity
-        data["miningtime"] = miningtime
-        with open('save.json', 'w') as save_file:json.dump(data, save_file)
-        sys.exit()
-    else:main()
-
-
-def slowprint(s):
-    for c in s + '\n':
-        sys.stdout.write(c)
-        sys.stdout.flush()
-        time.sleep(.4/10)
-
-def welcome():
-    global save
-    slowprint("Welcome to PyMiner, What's your name? ")
-    name = input("")
-    data["name"] = name
-    with open('save.json', 'w') as save_file:
-        json.dump(data, save_file)
-    slowprint("Hello " + data["name"] + "!")
-    time.sleep(2)
-    main()
-
-if save["name"] == "":welcome()
-else:
-    print("Welcome back " + save["name"] + "!")
-    time.sleep(2)
-    main()
+game = Game()
+game.run()
