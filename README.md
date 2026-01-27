@@ -15,6 +15,7 @@ python main.py
 ## Game Structure
 
 * **main.py** — entry point of the game.
+* **actions.py** — defines all available actions.
 * **items.py** — defines all available ores and their properties.
 * **CHANGELOG.md** — log of all changes and updates.
 

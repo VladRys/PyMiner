@@ -2,7 +2,65 @@
 
 All notable changes to this project will be documented in this file.
 
-## PyMiner [1.0.0]
+## PyMiner [1.0.1]
+
+This release focuses on architectural improvements, clearer separation of responsibilities, and better adherence to OOP and SOLID principles. No major gameplay changes were introduced; the update primarily refines the internal structure of the project.
+
+### Key Changes
+
+- **Architecture & SOLID**
+    - Introduced a dedicated `GameStateService` layer for all game-related business logic.
+    - `GameState` is now a pure state holder without side effects or behavior.
+    - Clear separation of concerns between:
+        - `Game` — orchestration
+        - `GameState` — data
+        - `GameStateService` — business rules
+        - `UI` — input/output
+        - `Action` — gameplay scenarios
+
+- **Action System Refactor**
+    - All gameplay logic moved into `Action` classes (`MiningAction`, `InventoryAction`, `UpgradesAction`).
+    - Actions now explicitly receive dependencies.
+    - Removed direct state mutation from UI and menu logic.
+
+- **State & Save Handling**
+    - Centralized save logic via `GameState.save_state()`.
+    - Automatic save batching implemented in `GameStateService` (periodic autosave).
+    - Safer save initialization with fallback defaults on corrupted or missing save files.
+
+- **UI Enhancements**
+    - `UI` class handles all input/output and slowprint logic.
+    - Menu, inventory, and upgrades display are separated from game logic.
+
+- **Game Loop Improvements**
+    - `Game` now acts as a coordinator, not a logic container.
+    - Menu handling simplified and delegated to actions.
+    - Graceful shutdown with guaranteed state persistence on exit or interruption.
+
+- **Logging**
+    - Added structured logging for player sessions and unexpected errors.
+    - Game events are now traceable via `game.log`.
+
+### Removed / Deprecated
+
+- Procedural methods in `Game` like `mine`, `show_inventory`, `upgrades` replaced by `Action` classes.
+- Direct manipulation of GameState attributes outside service layer discouraged.
+
+### Fixed
+
+- Inventory overflow consistently prevents adding items beyond capacity.
+- Save operations are centralized and reliable.
+- Mining animation simplified and consistent.
+- Upgrades correctly check money and apply changes via service.
+
+### Notes
+
+- Gameplay behavior remains unchanged compared to `1.0.0`.
+- This version lays the groundwork for easier testing, future feature expansion, and further decou
+
+
+
+## PyMiner [1.0.0] - 25-01-2026
 
 First public release of my PyMiner fork. The project has been refactored from a procedural script into a structured, object-oriented design, providing a foundation for modular development and future feature expansion.
 
