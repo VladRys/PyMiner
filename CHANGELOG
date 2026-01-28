@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## PyMiner [1.0.1]
+## PyMiner [1.0.1] - 27-01-2026
 
 This release focuses on architectural improvements, clearer separation of responsibilities, and better adherence to OOP and SOLID principles. No major gameplay changes were introduced; the update primarily refines the internal structure of the project.
 
@@ -24,7 +24,7 @@ This release focuses on architectural improvements, clearer separation of respon
     - Removed direct state mutation from UI and menu logic.
 
 - **State & Save Handling**
-    - Centralized save logic via `GameState.save_state()`.
+    - Centralized save logic via `GameStateService.save_state()`.
     - Automatic save batching implemented in `GameStateService` (periodic autosave).
     - Safer save initialization with fallback defaults on corrupted or missing save files.
 

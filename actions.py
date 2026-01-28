@@ -98,14 +98,14 @@ class UpgradesAction(Action):
 
             if choice == "1":
                 self._upgrade_speed(state, state_service, ui)
-                state.save_state()
+                state_service.save_state()
 
             elif choice == "2":
                 self._upgrade_capacity(state, state_service, ui)
-                state.save_state()
+                state_service.save_state()
             
             elif choice == "3":
-                state.save_state()
+                state_service.save_state()
                 return True
             else:
                 ui.clear()

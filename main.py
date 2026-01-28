@@ -6,10 +6,13 @@ import os
 import logging
 from abc import ABC, abstractmethod
 
+import actions
 from items import ITEM_REGISTRY, ORE_POOL, Item
 from actions import MiningAction, InventoryAction, UpgradesAction
 from config import (INITIAL_ITEM_CAPACITY, INITIAL_MINING_TIME, INITIAL_MONEY, 
                     INITIAL_INVENTORY, ORE_POOL_SIZE, ITEM_DROP_RANGE, SLOWPRINT_DELAY)
+
+from events import EventManager
 
 logging.basicConfig(
     level=logging.INFO,
@@ -80,27 +83,29 @@ class GameState:
         """Set mining time with validation"""
         self._mining_time = max(0.1, value)
 
-    def save_state(self):
-        """Save current game state to file"""
-        data = {
-            "name": self.saves["name"],
-            "money": self.money,
-            "inventory": [item.__class__.__name__ for item in self.inventory],
-            "itemcapacity": self.item_capacity,
-            "miningtime": self._mining_time
-        }
-        self.saves.update_all(data) 
-        logger.info("Game state saved")
+
 
 class GameStateService:
     """Service class for game state operations"""
     def __init__(self, state: GameState):
         self.state = state
 
+    def save_state(self):
+        """Save current game state to file"""
+        data = {
+            "name": self.state.saves["name"],
+            "money": self.state.money,
+            "inventory": [item.__class__.__name__ for item in self.state.inventory],
+            "itemcapacity": self.state.item_capacity,
+            "miningtime": self.state.mining_time
+        }
+        self.state.saves.update_all(data) 
+        logger.info("Game state saved")
+
     def clear_inventory(self):
         """Clear the inventory"""
         self.state.inventory = []
-        self.state.save_state()
+        self.save_state()
         logger.info("Inventory cleared")
     
     def add_money(self, amount: int) -> int:
@@ -111,7 +116,7 @@ class GameStateService:
         self.state.money += amount
         self.state._auto_save_counter += 1
         if self.state._auto_save_counter >= 5:
-            self.state.save_state()
+            self.save_state()
             self.state._auto_save_counter = 0
         
         logger.info(f"Added ${amount}, new balance: ${self.state.money}")
@@ -124,7 +129,7 @@ class GameStateService:
 
         if self.state.money >= amount:
             self.state.money -= amount
-            self.state.save_state()
+            self.save_state()
             logger.info(f"Deducted ${amount}, new balance: ${self.state.money}")
             return self.state.money
         
@@ -136,9 +141,20 @@ class GameStateService:
             raise ValueError("Amount must be non-negative")
 
         self.state.mining_time = max(0.1, self.state.mining_time - amount)
-        self.state.save_state()
+        self.save_state()
         logger.info(f"Mining time increased, new time: {self.state.mining_time}")
         return self.state.mining_time
+
+    def decrease_mining_speed(self, amount: float) -> float:
+        """Decrease mining speed (increase mining time)"""
+        if amount < 0:
+            raise ValueError("Amount must be non-negative")
+
+        self.state.mining_time += amount
+        self.save_state()
+        logger.info(f"Mining time decreased, new time: {self.state.mining_time}")
+        return self.state.mining_time
+        
 
     def increase_item_capacity(self, amount: int = 1) -> int:
         """Increase item capacity"""
@@ -146,8 +162,19 @@ class GameStateService:
             raise ValueError("Amount must be non-negative")
 
         self.state.item_capacity += amount
-        self.state.save_state()
+        self.save_state()
         logger.info(f"Item capacity increased, new capacity: {self.state.item_capacity}")
+
+        return self.state.item_capacity
+
+    def decrease_item_capacity(self, amount: int = 1) -> int:
+        """Decrease item capacity"""
+        if amount < 0:
+            raise ValueError("Amount must be non-negative")
+
+        self.state.item_capacity = max(1, self.state.item_capacity - amount)
+        self.save_state()
+        logger.info(f"Item capacity decreased, new capacity: {self.state.item_capacity}")
 
         return self.state.item_capacity
 
@@ -180,12 +207,12 @@ class UI:
         print(f"[2] Increase item capacity by 1 | ${round(capacity_cost)}")
         print("[3] Exit")
 
-    def slowprint(self, text: str):
+    def slowprint(self, text: str, delay: float = SLOWPRINT_DELAY):
         for c in text + '\n':
             sys.stdout.write(c)
             sys.stdout.flush()
-            time.sleep(SLOWPRINT_DELAY)
-
+            time.sleep(delay)
+            
     def input_choice(self, prompt: str = "choice: ") -> str:
         return input(prompt)
 
@@ -196,11 +223,12 @@ class UI:
 class Game:
     """Main game class"""
     
-    def __init__(self, ui: UI, saves: Saves):
+    def __init__(self, ui: UI, saves: Saves, event_manager: EventManager):
         self.ui = ui
         self.saves = saves
         self.state = GameState(self.saves)
         self.state_service = GameStateService(self.state)
+        self.event_manager = event_manager
 
         self.actions = {
             "1": MiningAction(),
@@ -229,21 +257,21 @@ class Game:
                 self._menu()
         except KeyboardInterrupt:
             logger.info("Game interrupted by user")
-            self.state.save_state()
+            self.state_service.save_state()
             self.ui.clear()
             print("Game saved. Goodbye!")
             sys.exit(0)
 
         except Exception as e:
             logger.error(f"Unexpected error: {e}", exc_info=True)
-            self.state.save_state()
+            self.state_service.save_state()
             raise
     
     def _welcome(self):
         self.ui.slowprint("Welcome to PyMiner, what's your name? ")
         name = input("")
         self.state.saves["name"] = name
-        self.state.save_state()
+        self.state_service.save_state()
         self.ui.slowprint("Hello " + name + "!")
         time.sleep(2)
 
@@ -254,9 +282,17 @@ class Game:
         if choice in self.actions:
             self.actions[choice].execute(self.state, self.state_service, self.ui)
             logger.info(f"Executed action {choice}")
+
+            if choice == "1":
+                # Check for random event after mining action
+                self.event_manager.trigger_random_event(self.state, self.state_service, self.ui)
         elif choice == "4":
-            self.state.save_state()
+            self.state_service.save_state()
             sys.exit()
+
+        elif choice == "debug":
+            pass 
+
         else:
             self.ui.clear()
             print("Invalid choice!")
@@ -264,6 +300,6 @@ class Game:
 
 
 if __name__ == "__main__":
-    game = Game(UI(), Saves())
+    game = Game(UI(), Saves(), EventManager(logger))
     game.run()
     logger.info("Game initialized successfully")
