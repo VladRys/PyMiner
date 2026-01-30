@@ -12,7 +12,7 @@ from actions import MiningAction, InventoryAction, UpgradesAction
 from config import (INITIAL_ITEM_CAPACITY, INITIAL_MINING_TIME, INITIAL_MONEY, 
                     INITIAL_INVENTORY, ORE_POOL_SIZE, ITEM_DROP_RANGE, SLOWPRINT_DELAY)
 
-from events import EventManager
+from events import EventManager, HelpStrangerEvent
 
 logging.basicConfig(
     level=logging.INFO,
@@ -291,8 +291,7 @@ class Game:
             sys.exit()
 
         elif choice == "debug":
-            pass 
-
+            self.event_manager.trigger_specific_event(HelpStrangerEvent, self.state, self.state_service, self.ui)
         else:
             self.ui.clear()
             print("Invalid choice!")

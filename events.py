@@ -14,7 +14,7 @@ class EventManager:
             Event: 0.1,
             LuckyEvent: 0.1,
             EquipmentFailureEvent: 0.1,
-            HelpSomeoneEvent: 0.1,
+            HelpStrangerEvent: 0.1,
         }
     
     def should_trigger(self) -> bool:
@@ -197,98 +197,55 @@ class EventWithChoice(Event):
         
         # 50/50 chance for good or bad
         consequence_type = random.choice(["good", "bad"])
-        consequence_class = random.choice(consequence_pool[consequence_type])
+        consequence_callable = random.choice(consequence_pool[consequence_type])
         
-        return consequence_class(self.state, self.state_service, self.ui)
-    
+        return consequence_callable()
 
-class HelpGoodConsequence1(Consequence):
-    """Helped and got rewarded"""
-    def __init__(self, state, state_service, ui):
+class MoneyGainConsequence(Consequence):
+    """Gain a random amount of money"""
+    def __init__(self, state, state_service, ui, gain: int, description: str):
         super().__init__(state, state_service, ui)
-        self.description = "They thanked you and gave you money! +$50"
+        self.amount = gain
+        self.description = description
+
+    def apply(self) -> bool:
+        self.state_service.add_money(self.amount)
+        return True
+    
+class SpeedGainConsequence(Consequence):
+    def __init__(self, state, state_service, ui, gain, description):
+        super().__init__(state, state_service, ui)
+        self.gain = gain
+        self.description = description
     
     def apply(self) -> bool:
-        self.state_service.add_money(50)
+        self.state_service.increase_mining_speed(self.gain)
+        return True
+
+class MoneyLossConsequence(Consequence):
+    """Lose a random amount of money"""
+    def __init__(self, state, state_service, ui, loss: int, description: str):
+        super().__init__(state, state_service, ui)
+        self.amount = loss
+        self.description = description
+
+
+    def apply(self) -> bool:
+        self.state_service.deduct_money(self.amount)
         return True
 
 
-class HelpGoodConsequence2(Consequence):
-    """Helped and got better mining speed"""
-    def __init__(self, state, state_service, ui):
+class SpeedLossConsequence(Consequence):
+    def __init__(self, state, state_service, ui, loss, description):
         super().__init__(state, state_service, ui)
-        self.description = "They blessed you with good luck! Mining speed +5%"
+        self.loss = loss
+        self.description = description
     
     def apply(self) -> bool:
-        self.state_service.increase_mining_speed(0.05)
+        self.state_service.decrease_mining_speed(self.loss)
         return True
-
-
-class HelpBadConsequence1(Consequence):
-    """Helped but got robbed"""
-    def __init__(self, state, state_service, ui):
-        super().__init__(state, state_service, ui)
-        self.description = "It was a trap! They stole $30 from you."
     
-    def apply(self) -> bool:
-        self.state_service.deduct_money(min(30, self.state.money))
-        return True
-
-
-class HelpBadConsequence2(Consequence):
-    """Helped but got cursed"""
-    def __init__(self, state, state_service, ui):
-        super().__init__(state, state_service, ui)
-        self.description = "Bad luck! Your mining speed decreased by 3%"
-    
-    def apply(self) -> bool:
-        self.state_service.decrease_mining_speed(0.03)
-        return True
-
-class IgnoreGoodConsequence1(Consequence):
-    """Avoided trouble and got lucky"""
-    def __init__(self, state, state_service, ui):
-        super().__init__(state, state_service, ui)
-        self.description = "You avoided a dangerous situation and found $75!"
-    
-    def apply(self) -> bool:
-        self.state_service.add_money(75)
-        return True
-
-class IgnoreGoodConsequence2(Consequence):
-    """Avoided trouble and got blessed"""
-    def __init__(self, state, state_service, ui):
-        super().__init__(state, state_service, ui)
-        self.description = "You dodged trouble! Mining speed +8%"
-    
-    def apply(self) -> bool:
-        self.state_service.increase_mining_speed(0.08)
-        return True
-
-
-class IgnoreBadConsequence1(Consequence):
-    """Bad karma for ignoring"""
-    def __init__(self, state, state_service, ui):
-        super().__init__(state, state_service, ui)
-        self.description = "Karma came back to haunt you! Lost $40"
-    
-    def apply(self) -> bool:
-        self.state_service.deduct_money(min(40, self.state.money))
-        return True
-
-
-class IgnoreBadConsequence2(Consequence):
-    """Curse for ignoring"""
-    def __init__(self, state, state_service, ui):
-        super().__init__(state, state_service, ui)
-        self.description = "Curse of the ignored! Mining speed -4%"
-    
-    def apply(self) -> bool:
-        self.state_service.decrease_mining_speed(0.04)
-        return True
-
-
-class HelpSomeoneEvent(EventWithChoice):
+class HelpStrangerEvent(EventWithChoice):
     """
     Player can choose to help a stranger or ignore them.
     Each choice leads to random good/bad consequences.
@@ -304,11 +261,23 @@ class HelpSomeoneEvent(EventWithChoice):
         
         self.choice_consequences = {
             "1": {  # Help
-                "good": [HelpGoodConsequence1, HelpGoodConsequence2],
-                "bad": [HelpBadConsequence1, HelpBadConsequence2]
+                "good": [
+                    lambda s=state, ss=state_service, u=ui: MoneyGainConsequence(s, ss, u, 50, "They thanked you! +$50"),
+                    lambda s=state, ss=state_service, u=ui: SpeedGainConsequence(s, ss, u, 0.05, "They blessed you! +5%")
+                ],
+                "bad": [
+                    lambda s=state, ss=state_service, u=ui: MoneyLossConsequence(s, ss, u, 20, "They took your money! -$20"),
+                    lambda s=state, ss=state_service, u=ui: SpeedLossConsequence(s, ss, u, 0.05, "They cursed you! -5%")
+                ]
             },
             "2": {  # Ignore
-                "good": [IgnoreGoodConsequence1, IgnoreGoodConsequence2],
-                "bad": [IgnoreBadConsequence1, IgnoreBadConsequence2]
+                "good": [
+                    lambda s=state, ss=state_service, u=ui: MoneyGainConsequence(s, ss, u, 30, "You found some loose change! +$30"),
+                    lambda s=state, ss=state_service, u=ui: SpeedGainConsequence(s, ss, u, 0.05, "You were blessed with good luck! Mining speed +5%")
+                ],
+                "bad": [
+                    lambda s=state, ss=state_service, u=ui: MoneyLossConsequence(s, ss, u, 10, "You got bad karma! -$10"),
+                    lambda s=state, ss=state_service, u=ui: SpeedLossConsequence(s, ss, u, 0.05, "You were cursed! Mining speed -5%")
+                ]
             }
         }
