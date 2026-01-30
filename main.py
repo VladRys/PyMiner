@@ -108,6 +108,17 @@ class GameStateService:
         self.save_state()
         logger.info("Inventory cleared")
     
+    def add_item_to_inventory(self, item: Item) -> bool:
+        """Add item to inventory if capacity allows"""
+        if len(self.state.inventory) < self.state.item_capacity:
+            self.state.inventory.append(item)
+            self.save_state()
+            logger.info(f"Added {item.name} to inventory")
+            return True
+        logger.warning("Failed to add item: Inventory full")
+        return False
+    
+
     def add_money(self, amount: int) -> int:
         """Add money with auto-save every 5 transactions"""
         if amount < 0:

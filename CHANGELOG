@@ -2,6 +2,60 @@
 
 All notable changes to this project will be documented in this file.
 
+## PyMiner [1.0.2] — 31-01-2026
+
+This release introduces a modular event system that adds randomness, risk, and player choice to the mining loop.
+
+### Key Changes
+
+- **Event System**
+    - Added `EventManager` to control random and forced event triggering.
+    - Events are triggered based on ``BASIC_EVENT_CHANCE``.
+    - Supports weighted random event selection via random.choices.
+
+- **Base Event Architecture**
+    - Introduced base `Event` class with a unified lifecycle:
+        - UI clear → description → consequence application → result display.
+    
+    - All effects are applied strictly through `GameStateService`.
+        - Example methods: add_money, deduct_money, increase_mining_speed, decrease_mining_speed.
+
+- **Simple Random Events**
+    - `TraumaEvent` — randomly decreases mining speed.
+    - `LuckyEvent` — grants a random amount of money.
+    - `EquipmentFailureEvent` — deducts money for repairs based on current balance.
+
+- **Choice-Based Events**
+    - Added `EventWithChoice` abstraction for player-decision events.
+    - Input validation (up to 3 attempts).
+    - 50/50 chance for good or bad outcomes.
+    - Implemented `HelpStrangerEvent`:
+        - Choice: help or ignore.
+        - Each choice has a pool of positive and negative consequences.
+
+- **Consequence System**
+    - Introduced `Consequence` layer to isolate event effects.
+    - Implemented concrete consequences:
+        - `MoneyGainConsequence`, `MoneyLossConsequenc`e
+        - `SpeedGainConsequence`, `SpeedLossConsequenc`e
+
+    - Each consequence is a standalone object with its own description and `apply()` method.
+
+- **UI & Feedback**
+    - Separate delays for descriptions and consequences
+    (`BASIC_EVENT_PRINT_DELAY`, `CONSQ_EVENT_PRINT_DELAY`).
+
+    - Events are fully interactive and do not break the game loop.
+
+## Notes
+
+- The system is fully extensible: new events are added as new classes without modifying the manager.
+
+- Architecture follows **SRP** and **Open/Closed** principles (new events and consequences can be added without changing existing code).
+
+- Events are seamlessly integrated after the mining action without affecting core game logic.  
+
+
 ## PyMiner [1.0.1] - 27-01-2026
 
 This release focuses on architectural improvements, clearer separation of responsibilities, and better adherence to OOP and SOLID principles. No major gameplay changes were introduced; the update primarily refines the internal structure of the project.

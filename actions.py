@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import time
 import random
 from abc import ABC, abstractmethod
@@ -42,12 +43,12 @@ class MiningAction(Action):
 
         items_to_add = random.choice(state.item_amounts)
         for _ in range(items_to_add):
-            if len(state.inventory) < state.item_capacity:
                 item = random.choice(state.ore_pool)
-                ui.print_message(f"{item.name} - ${item.price}")
-                state.inventory.append(item)
-            else:
-                break
+                if state_service.add_item_to_inventory(item):
+                    ui.print_message(f"{item.name} - ${item.price}")
+                else:
+                    break
+                
 
         ui.wait_for_input("\nPress enter to continue...")
         return True

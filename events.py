@@ -128,10 +128,9 @@ class EquipmentFailureEvent(Event):
 
 class Consequence:
     """Base class for choice-event consequence"""
-    def __init__(self, state, state_service, ui):
+    def __init__(self, state, state_service):
         self.state = state
         self.state_service = state_service
-        self.ui = ui
         self.description = "Something happened."
     
     def apply(self) -> bool:
@@ -203,8 +202,8 @@ class EventWithChoice(Event):
 
 class MoneyGainConsequence(Consequence):
     """Gain a random amount of money"""
-    def __init__(self, state, state_service, ui, gain: int, description: str):
-        super().__init__(state, state_service, ui)
+    def __init__(self, state, state_service, gain: int, description: str):
+        super().__init__(state, state_service)
         self.amount = gain
         self.description = description
 
@@ -213,8 +212,8 @@ class MoneyGainConsequence(Consequence):
         return True
     
 class SpeedGainConsequence(Consequence):
-    def __init__(self, state, state_service, ui, gain, description):
-        super().__init__(state, state_service, ui)
+    def __init__(self, state, state_service, gain, description):
+        super().__init__(state, state_service)
         self.gain = gain
         self.description = description
     
@@ -224,8 +223,8 @@ class SpeedGainConsequence(Consequence):
 
 class MoneyLossConsequence(Consequence):
     """Lose a random amount of money"""
-    def __init__(self, state, state_service, ui, loss: int, description: str):
-        super().__init__(state, state_service, ui)
+    def __init__(self, state, state_service, loss: int, description: str):
+        super().__init__(state, state_service)
         self.amount = loss
         self.description = description
 
@@ -236,8 +235,8 @@ class MoneyLossConsequence(Consequence):
 
 
 class SpeedLossConsequence(Consequence):
-    def __init__(self, state, state_service, ui, loss, description):
-        super().__init__(state, state_service, ui)
+    def __init__(self, state, state_service, loss, description):
+        super().__init__(state, state_service)
         self.loss = loss
         self.description = description
     
@@ -262,22 +261,23 @@ class HelpStrangerEvent(EventWithChoice):
         self.choice_consequences = {
             "1": {  # Help
                 "good": [
-                    lambda s=state, ss=state_service, u=ui: MoneyGainConsequence(s, ss, u, 50, "They thanked you! +$50"),
-                    lambda s=state, ss=state_service, u=ui: SpeedGainConsequence(s, ss, u, 0.05, "They blessed you! +5%")
+                    lambda s=state, ss=state_service: MoneyGainConsequence(s, ss, 50, "They thanked you! +$50"),
+                    lambda s=state, ss=state_service: SpeedGainConsequence(s, ss, 0.05, "They blessed you! +5%")
                 ],
                 "bad": [
-                    lambda s=state, ss=state_service, u=ui: MoneyLossConsequence(s, ss, u, 20, "They took your money! -$20"),
-                    lambda s=state, ss=state_service, u=ui: SpeedLossConsequence(s, ss, u, 0.05, "They cursed you! -5%")
+                    lambda s=state, ss=state_service: MoneyLossConsequence(s, ss, 20, "They took your money! -$20"),
+                    lambda s=state, ss=state_service: SpeedLossConsequence(s, ss, 0.05, "They cursed you! -5%")
                 ]
             },
             "2": {  # Ignore
                 "good": [
-                    lambda s=state, ss=state_service, u=ui: MoneyGainConsequence(s, ss, u, 30, "You found some loose change! +$30"),
-                    lambda s=state, ss=state_service, u=ui: SpeedGainConsequence(s, ss, u, 0.05, "You were blessed with good luck! Mining speed +5%")
+                    lambda s=state, ss=state_service: MoneyGainConsequence(s, ss, 30, "You found some loose change! +$30"),
+                    lambda s=state, ss=state_service: SpeedGainConsequence(s, ss, 0.05, "You were blessed with good luck! Mining speed +5%")
                 ],
+
                 "bad": [
-                    lambda s=state, ss=state_service, u=ui: MoneyLossConsequence(s, ss, u, 10, "You got bad karma! -$10"),
-                    lambda s=state, ss=state_service, u=ui: SpeedLossConsequence(s, ss, u, 0.05, "You were cursed! Mining speed -5%")
+                    lambda s=state, ss=state_service: MoneyLossConsequence(s, ss, 10, "You got bad karma! -$10"),
+                    lambda s=state, ss=state_service: SpeedLossConsequence(s, ss, 0.05, "You were cursed! Mining speed -5%")
                 ]
             }
         }
