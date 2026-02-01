@@ -2,7 +2,7 @@ from dataclasses import dataclass
 import time
 import random
 from abc import ABC, abstractmethod
-from config import (UPGRADE_CAPACITY_MULTIPLIER, UPGRADE_SPEED_BASE, 
+from config import (MINING_ANIMATION_FRAMES, UPGRADE_CAPACITY_MULTIPLIER, UPGRADE_SPEED_BASE, 
                     UPGRADE_SPEED_FACTOR, UPGRADE_SPEED_DECREASE, 
                     UPGRADE_SPEED_MIN_COST, CHOICE_TIMEOUT)
 
@@ -31,7 +31,7 @@ class MiningAction(Action):
             time.sleep(2)
             return True
 
-        step = state.mining_time / 3
+        step = state.mining_time / MINING_ANIMATION_FRAMES
 
         for dots in range(1, 4):
             ui.clear()
@@ -51,6 +51,8 @@ class MiningAction(Action):
                 
 
         ui.wait_for_input("\nPress enter to continue...")
+        state_service.reduce_event_defence()
+        
         return True
     
 class InventoryAction(Action):
@@ -151,4 +153,103 @@ class UpgradesAction(Action):
             time.sleep(1.5)
 
             return False
+
+class Deal:
+    def __init__(self) -> None:
+        self.name = "Deal Name"
+        self.cost = 0
+        self.description = "Do something special"
+
+    """Shop deal abstract class"""
+    @abstractmethod
+    def apply_deal(self, state, state_service, ui) -> bool:
+        pass
+
+class GodBlessDeal(Deal):
+    def __init__(self) -> None:
+        self.name = "God bless."
+        self.cost = 100
+        self.description = "Defend yourself from all events for 10 minings"
+
+    def apply_deal(self, state, state_service, ui) -> bool:
+        if state.money >= self.cost:
+            state_service.deduct_money(self.cost)
+            state_service.add_event_defence(10)
+
+            ui.clear()
+            ui.print_message("You are now protected from all events for the next 10 minings!")
+            time.sleep(1.5)
+
+            return True
+        else:
+            ui.clear()
+            ui.print_message("Not enough money!")
+            time.sleep(1.5)
+
+            return False
+
+
+class ShopAction(Action):
+    """Shop management logic"""
+    def __init__(self) -> None:
+        self.greeting_messages = [
+            "... Who is there? Oh, it's you! Welcome to my shop!",
+            "Looking for something special, stranger?",
+            "Find the best deals here!",
+            "Your adventure starts with the right gear!"
+            ]
         
+        self.options = {
+            "1": "Look at deals",
+            "2": "Leave shop"
+        }
+
+        self.deals: dict[str, Deal] = {
+            "1": GodBlessDeal()
+        }
+        
+    def execute(self, state, state_service, ui) -> bool:
+        while True:
+            ui.clear()
+            ui.slowprint(random.choice(self.greeting_messages) + "\n")
+            for key, value in self.options.items():
+                ui.print_message(f"[{key}] {value}")
+
+            choice = ui.input_choice()
+    
+            if choice.isdigit():
+                choice = int(choice)
+                if choice in [int(key) for key in self.options.keys()]:
+                    if choice == 1:
+                        ui.clear()
+                        for key, deal in self.deals.items():
+                            ui.print_message(f"[{key}] {deal.name}: {deal.description} (Cost: ${deal.cost})")
+                        
+                        choice = ui.input_choice("That's a good deals! I'll take it.\nChoose a deal number or press enter to go back: ")
+                        if choice in self.deals.keys():
+                            self._buy_deal(self.deals[choice], state, state_service, ui)
+                            time.sleep(1.5)
+
+                        else:
+                            ui.clear()
+                            ui.print_message("Returning to shop menu...")
+                            time.sleep(1.5)
+                        
+
+                    elif choice == 2:
+                        state_service.save_state()
+                        return True
+                    
+                else:
+                    ui.clear()
+                    ui.print_message("Invalid choice!")
+                    time.sleep(CHOICE_TIMEOUT)
+
+            else:
+                ui.clear()
+                ui.print_message("Invalid choice!")
+                time.sleep(CHOICE_TIMEOUT)
+    
+    def _buy_deal(self, deal: Deal, state, state_service, ui) -> bool:
+        return deal.apply_deal(state, state_service, ui)
+

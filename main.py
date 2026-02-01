@@ -4,15 +4,13 @@ import json
 import sys
 import os
 import logging
-from abc import ABC, abstractmethod
 
-import actions
-from items import ITEM_REGISTRY, ORE_POOL, Item
-from actions import MiningAction, InventoryAction, UpgradesAction
+from modules.items import ITEM_REGISTRY, ORE_POOL, Item
+from modules.actions import MiningAction, InventoryAction, UpgradesAction, ShopAction
 from config import (INITIAL_ITEM_CAPACITY, INITIAL_MINING_TIME, INITIAL_MONEY, 
                     INITIAL_INVENTORY, ORE_POOL_SIZE, ITEM_DROP_RANGE, SLOWPRINT_DELAY)
 
-from events import EventManager, HelpStrangerEvent
+from modules.events import EventManager, HelpStrangerEvent
 
 logging.basicConfig(
     level=logging.INFO,
@@ -34,7 +32,8 @@ class Saves:
                 "money": INITIAL_MONEY, 
                 "inventory": INITIAL_INVENTORY, 
                 "itemcapacity": INITIAL_ITEM_CAPACITY, 
-                "miningtime": INITIAL_MINING_TIME
+                "miningtime": INITIAL_MINING_TIME,
+                "eventdefencecounter": 0
             }
             self.save()
 
@@ -72,6 +71,7 @@ class GameState:
         self._mining_time: float = self.saves["miningtime"]
         self.ore_pool: list[Item] = []
         self._auto_save_counter = 0
+        self._event_defence_counter = self.saves["eventdefencecounter"]
 
     @property
     def mining_time(self) -> float:
@@ -83,6 +83,13 @@ class GameState:
         """Set mining time with validation"""
         self._mining_time = max(0.1, value)
 
+    @property
+    def event_defence_counter(self) -> int:
+        return self._event_defence_counter
+    
+    @event_defence_counter.setter
+    def event_defence_counter(self, value: int):
+        self._event_defence_counter = max(0, value)
 
 
 class GameStateService:
@@ -97,7 +104,8 @@ class GameStateService:
             "money": self.state.money,
             "inventory": [item.__class__.__name__ for item in self.state.inventory],
             "itemcapacity": self.state.item_capacity,
-            "miningtime": self.state.mining_time
+            "miningtime": self.state.mining_time,
+            "eventdefencecounter": self.state.event_defence_counter
         }
         self.state.saves.update_all(data) 
         logger.info("Game state saved")
@@ -189,6 +197,26 @@ class GameStateService:
 
         return self.state.item_capacity
 
+    def add_event_defence(self, duration: int = 10) -> int:
+        """Add event defence for a number of minings"""
+        if duration < 0:
+            raise ValueError("Duration must be non-negative")
+        
+        self.state.event_defence_counter += duration
+        self.save_state()
+        
+        logger.info(f"Defent from event effect added for {duration} minings")
+        return self.state.event_defence_counter
+
+    def reduce_event_defence(self) -> int:
+        """Reduce event defence counter by 1"""
+        if self.state.event_defence_counter > 0:
+            self.state.event_defence_counter -= 1
+            self.save_state()
+            logger.info("Event defence counter reduced by 1")
+        
+        return self.state.event_defence_counter
+
 class UI:
     """Class for user interface methods"""
     
@@ -200,7 +228,8 @@ class UI:
         print("PyMiner\n\n" + "$" + str(round(state.money)) + 
               "\n\nitem capacity: " + str(state.item_capacity) + 
               "\nmining time: " + str(state.mining_time) + 
-              "\n\n[1] go mining\n[2] inventory\n[3] upgrades\n[4] exit\n")
+              f"\nevent defence: {state.event_defence_counter if state.event_defence_counter > 0 else 'None'}" + 
+              "\n\n[1] go mining\n[2] inventory\n[3] upgrades\n[4] shop\n[5] exit\n")
 
     def print_message(self, message: str):
         print(message)
@@ -244,7 +273,8 @@ class Game:
         self.actions = {
             "1": MiningAction(),
             "2": InventoryAction(),
-            "3": UpgradesAction()
+            "3": UpgradesAction(),
+            "4": ShopAction()
         }
         self._init_loot()
 
@@ -254,6 +284,7 @@ class Game:
             self.state.ore_pool.append(random.choice(ORE_POOL)())
             self.state.item_amounts.append(random.randint(*ITEM_DROP_RANGE))
             logger.info("Initialized loot pool and item amounts")
+            
 
     def run(self):
         try:
@@ -294,10 +325,13 @@ class Game:
             self.actions[choice].execute(self.state, self.state_service, self.ui)
             logger.info(f"Executed action {choice}")
 
-            if choice == "1":
+               
+
+            if choice == "1" and self.state.event_defence_counter <= 0:
                 # Check for random event after mining action
                 self.event_manager.trigger_random_event(self.state, self.state_service, self.ui)
-        elif choice == "4":
+
+        elif choice == "5":
             self.state_service.save_state()
             sys.exit()
 

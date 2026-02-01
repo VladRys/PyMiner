@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## PyMiner [1.0.3] - ???
+
+### Key Changes
+- **New ores**
+    - `Ruby`, `Emerald`.
+
+- **Shop**
+    - The place where player can buy items, or have bless to avoid all events.
+    - Introduced `ShopAction` and `Deal` class for deals, you can buy in shop.
+    - Deals:
+        - `GodBlessDeal` - You will have immunity for all events for 10 minings.
+
+- **Updated file structure**
+    - `actions.py`, `events.py`, `items.py` was moved to `modules` folder for convenience.
+
+- **Main Menu**
+    - Updated choices for new `ShopAction`.
+    - Added `GameState.event_defence_counter` to main-menu.
+
 ## PyMiner [1.0.2] — 31-01-2026
 
 This release introduces a modular event system that adds randomness, risk, and player choice to the mining loop.
