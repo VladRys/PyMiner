@@ -4,7 +4,7 @@ import random
 from abc import ABC, abstractmethod
 from config import (MINING_ANIMATION_FRAMES, UPGRADE_CAPACITY_MULTIPLIER, UPGRADE_SPEED_BASE, 
                     UPGRADE_SPEED_FACTOR, UPGRADE_SPEED_DECREASE, 
-                    UPGRADE_SPEED_MIN_COST, CHOICE_TIMEOUT)
+                    UPGRADE_SPEED_MIN_COST, CHOICE_TIMEOUT, LUCKY_EVENT_LUCK_VALUE)
 
 class Action(ABC):
     """Abstract class for all actions"""
@@ -188,6 +188,30 @@ class GodBlessDeal(Deal):
 
             return False
 
+class BlessForLuckDeal(Deal):
+
+    def __init__(self) -> None:
+        self.name = "Bless for luck"
+        self.cost = 75
+        self.description = "Only lucky events on your path"
+        
+    def apply_deal(self, state, state_service, ui) -> bool:
+        if state.money >= self.cost:
+            state_service.deduct_money(self.cost)
+            state_service.increase_luck(LUCKY_EVENT_LUCK_VALUE)
+
+            ui.clear()
+            ui.print_message("You are now blessed for luck! Only lucky events on your path!")
+            time.sleep(1.5)
+
+            return True
+        else:
+            ui.clear()
+            ui.print_message("Not enough money!")
+            time.sleep(1.5)
+
+            return False
+
 
 class ShopAction(Action):
     """Shop management logic"""
@@ -205,7 +229,8 @@ class ShopAction(Action):
         }
 
         self.deals: dict[str, Deal] = {
-            "1": GodBlessDeal()
+            "1": GodBlessDeal(),
+            "2": BlessForLuckDeal()
         }
         
     def execute(self, state, state_service, ui) -> bool:

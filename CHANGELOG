@@ -13,6 +13,7 @@ All notable changes to this project will be documented in this file.
     - Introduced `ShopAction` and `Deal` class for deals, you can buy in shop.
     - Deals:
         - `GodBlessDeal` - You will have immunity for all events for 10 minings.
+        - `BlessForLuckDeal` - You will bless for additional luck. Only lucky events on your path.
 
 - **Updated file structure**
     - `actions.py`, `events.py`, `items.py` was moved to `modules` folder for convenience.

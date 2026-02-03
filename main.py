@@ -8,9 +8,10 @@ import logging
 from modules.items import ITEM_REGISTRY, ORE_POOL, Item
 from modules.actions import MiningAction, InventoryAction, UpgradesAction, ShopAction
 from config import (INITIAL_ITEM_CAPACITY, INITIAL_MINING_TIME, INITIAL_MONEY, 
-                    INITIAL_INVENTORY, ORE_POOL_SIZE, ITEM_DROP_RANGE, SLOWPRINT_DELAY)
+                    INITIAL_INVENTORY, ORE_POOL_SIZE, ITEM_DROP_RANGE, SLOWPRINT_DELAY,
+                    LUCKY_EVENT_LUCK_VALUE)
 
-from modules.events import EventManager, HelpStrangerEvent
+from modules.events import EventManager, HelpStrangerEvent, LuckyEvent
 
 logging.basicConfig(
     level=logging.INFO,
@@ -33,7 +34,8 @@ class Saves:
                 "inventory": INITIAL_INVENTORY, 
                 "itemcapacity": INITIAL_ITEM_CAPACITY, 
                 "miningtime": INITIAL_MINING_TIME,
-                "eventdefencecounter": 0
+                "eventdefencecounter": 0,
+                "additional_luck": 0
             }
             self.save()
 
@@ -72,6 +74,7 @@ class GameState:
         self.ore_pool: list[Item] = []
         self._auto_save_counter = 0
         self._event_defence_counter = self.saves["eventdefencecounter"]
+        self._additional_luck: float | int = self.saves["additional_luck"]
 
     @property
     def mining_time(self) -> float:
@@ -91,6 +94,14 @@ class GameState:
     def event_defence_counter(self, value: int):
         self._event_defence_counter = max(0, value)
 
+    @property
+    def additional_luck(self) -> float:
+        return self._additional_luck
+    
+    @additional_luck.setter
+    def additional_luck(self, value: float | int):
+        self._additional_luck = max(0, value)
+
 
 class GameStateService:
     """Service class for game state operations"""
@@ -105,7 +116,8 @@ class GameStateService:
             "inventory": [item.__class__.__name__ for item in self.state.inventory],
             "itemcapacity": self.state.item_capacity,
             "miningtime": self.state.mining_time,
-            "eventdefencecounter": self.state.event_defence_counter
+            "eventdefencecounter": self.state.event_defence_counter,
+            "additional_luck": self.state.additional_luck
         }
         self.state.saves.update_all(data) 
         logger.info("Game state saved")
@@ -196,6 +208,19 @@ class GameStateService:
         logger.info(f"Item capacity decreased, new capacity: {self.state.item_capacity}")
 
         return self.state.item_capacity
+
+    def increase_luck(self, value: float):
+        self.state.additional_luck += value
+        self.save_state()
+        logger.info(f"Additional luck increased to {value}")
+        return self.state.additional_luck
+
+    def reset_luck(self):
+        self.state.additional_luck = 0
+        self.save_state()
+        logger.info(f"Additional luck zeroed")
+
+        return self.state.additional_luck
 
     def add_event_defence(self, duration: int = 10) -> int:
         """Add event defence for a number of minings"""
@@ -325,7 +350,8 @@ class Game:
             self.actions[choice].execute(self.state, self.state_service, self.ui)
             logger.info(f"Executed action {choice}")
 
-               
+            if choice == "1" and self.state.additional_luck >= LUCKY_EVENT_LUCK_VALUE:
+                self.event_manager.trigger_specific_event(LuckyEvent, self.state, self.state_service, self.ui)
 
             if choice == "1" and self.state.event_defence_counter <= 0:
                 # Check for random event after mining action

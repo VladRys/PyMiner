@@ -1,47 +1,7 @@
 import time
 import random
 
-from config import BASIC_EVENT_PRINT_DELAY, CONSQ_EVENT_PRINT_DELAY, DECREASE_SPEED_EVENT_AREA, BASIC_EVENT_CHANCE
-
-
-class EventManager:
-    """Manages random events with probabilities"""
-    
-    def __init__(self, logger):
-        self.logger = logger
-        self.events_chances = {
-            TraumaEvent: 0.1, 
-            Event: 0.1,
-            LuckyEvent: 0.1,
-            EquipmentFailureEvent: 0.1,
-            HelpStrangerEvent: 0.1,
-        }
-    
-    def should_trigger(self) -> bool:
-        """Determine if an event should be triggered based on BASIC_EVENT_CHANCE"""
-        return random.random() < BASIC_EVENT_CHANCE
-    
-    def get_random_event(self):
-        """Return a random event based on probabilities"""
-        return random.choices(
-            list(self.events_chances.keys()), 
-            weights=list(self.events_chances.values()), 
-            k=1
-        )[0]
-    
-    def trigger_random_event(self, state, state_service, ui):
-        """Trigger a random event if conditions are met"""
-        if self.should_trigger():
-            event_class = self.get_random_event()
-            event = event_class(state, state_service, ui)
-            event.trigger()
-            self.logger.info(f"Random event triggered: {event_class.__name__}")
-
-    def trigger_specific_event(self, event_class, state, state_service, ui):
-        """Trigger a specific event"""
-        event = event_class(state, state_service, ui)
-        event.trigger()
-        self.logger.info(f"Specific event triggered: {event_class.__name__}")
+from config import BASIC_EVENT_PRINT_DELAY, CONSQ_EVENT_PRINT_DELAY, DECREASE_SPEED_EVENT_AREA, BASIC_EVENT_CHANCE, LUCKY_EVENT_LUCK_VALUE
 
 class Event:
     """Base class for events"""
@@ -101,6 +61,9 @@ class LuckyEvent(Event):
         self.conseq = "You gained some money."
 
     def _apply_consequence(self) -> bool:
+        if self.state.additional_luck >= LUCKY_EVENT_LUCK_VALUE:
+            self.state_service.reset_luck()
+
         self.state_service.add_money(random.randint(10, 50))
         return True
     
@@ -126,6 +89,59 @@ class EquipmentFailureEvent(Event):
         return True
 
 
+class EventManager:
+    """Manages random events with probabilities"""
+    
+    def __init__(self, logger):
+        self.logger = logger
+        self.events_chances = {
+            TraumaEvent: 0.1, 
+            Event: 0.1,
+            LuckyEvent: 0.1,
+            EquipmentFailureEvent: 0.1,
+            HelpStrangerEvent: 0.1,
+        }
+    
+    def should_trigger(self) -> bool:
+        """Determine if an event should be triggered based on BASIC_EVENT_CHANCE"""
+        return random.random() < BASIC_EVENT_CHANCE
+    
+    def get_random_event(self):
+        """Return a random event based on probabilities"""
+        return random.choices(
+            list(self.events_chances.keys()), 
+            weights=list(self.events_chances.values()), 
+            k=1
+        )[0]
+    
+    def trigger_random_event(self, state, state_service, ui):
+        """Trigger a random event if conditions are met"""
+        if self.should_trigger():
+            event_class = self.get_random_event()
+            event = event_class(state, state_service, ui)
+            event.trigger()
+            self.logger.info(f"Random event triggered: {event_class.__name__}")
+
+    def trigger_specific_event(self, event_class, state, state_service, ui):
+        """Trigger a specific event"""
+        event = event_class(state, state_service, ui)
+        event.trigger()
+        self.logger.info(f"Specific event triggered: {event_class.__name__}")
+
+    def increase_event_chance(self, event: Event, delta: float)-> dict | None:
+        if event in self.events_chances:
+            self.events_chances[event] = self.events_chances[event] + min(0.1, delta)
+            return self.events_chances
+        
+        return
+
+    def reduce_event_chance(self, event: Event, delta: float) -> dict | None:
+        if event in self.events_chances:
+            self.events_chances[event] = self.events_chances[event] - max(0, delta)
+            return self.events_chances
+        
+        return
+    
 class Consequence:
     """Base class for choice-event consequence"""
     def __init__(self, state, state_service):
